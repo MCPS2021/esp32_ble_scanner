@@ -11,3 +11,4 @@ and it publishes them to a MQTT Broker
 You need an ESP32 Dev board and Arduino IDE with the following packages:
 - "esp32" in Board Configurator by Espressif Systems
 - "ESP32 BLE Arduino" by Neil Kolban
+- "PubSubClient" by Nick O'Leary
