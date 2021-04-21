@@ -4,12 +4,13 @@
 #include <BLEUtils.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include <BLEBeacon.h>
 #include <PubSubClient.h>
 
 #include <WiFi.h>
 #include "wifi_config.h"
 
-#define SCAN_LENGTH 30               // scan length
+#define SCAN_LENGTH 7               // scan length
 #define MQTT_NAME "Station1"
 #define TOPIC1 "station1/UUIDs"      // MQTT topic 1
 #define TOPIC2 "station1/totalPeople" //MQTT topic 2
@@ -18,30 +19,7 @@
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-int SafeSkiingDevices = 0;
-
-
-//BLE Callback
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
-{
-    void onResult(BLEAdvertisedDevice device)
-    {
-      String dname = device.getName().c_str();
-      String addr = device.getAddress().toString().c_str();
-      String rssi = (String) device.getRSSI();
-
-      if (dname =="SafeSkiing"){
-        SafeSkiingDevices++;
-        
-        char msg[100];
-        String json = "{\"addr\": \""+addr+"\", \"batt\": \""+rssi+"\"}";
-        json.toCharArray(msg, 100);
-        
-        Serial.println(msg);
-        mqttClient.publish(TOPIC1, msg);
-      }
-    }
-};
+BLEScan *pBLEScan;
 
 void setup() {
   Serial.begin(9600);
@@ -58,6 +36,10 @@ void setup() {
   //turning on BLE
   BLEDevice::init("");
   Serial.println("BLE Enabled");
+  pBLEScan = BLEDevice::getScan(); //create new scan
+  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
+  pBLEScan->setInterval(0x50);
+  pBLEScan->setWindow(0x30);
 
   //connecting to MQTT
   Serial.print("Connecting to MQTT...");
@@ -77,17 +59,28 @@ void setup() {
 
 void loop() {
   Serial.println("Started BLE Scan");
-  SafeSkiingDevices = 0;
-  BLEScan *pBLEScan = BLEDevice::getScan(); //create new scan
-  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-  pBLEScan->setInterval(0x50);
-  pBLEScan->setWindow(0x30);
+  BLEScanResults devices = pBLEScan->start(SCAN_LENGTH, false);
+  uint8_t total = devices.getCount();
 
-  pBLEScan->start(SCAN_LENGTH, false);
+  Serial.println("Devices: " + (String)total);
+  for (uint8_t i=0; i<total; i++){
+      BLEAdvertisedDevice device = devices.getDevice(i);
+      String dname = device.getName().c_str();
+      String addr = device.getAddress().toString().c_str();
+      String rssi = (String) device.getRSSI();
+
+      if (dname =="SafeSkiing"){
+        char msg[100];
+        String json = "{\"addr\": \""+addr+"\", \"batt\": \""+rssi+"\"}";
+        json.toCharArray(msg, 100);
+        
+        Serial.println(msg);
+        mqttClient.publish(TOPIC1, msg);
+      }
+  }
   //publish to topic
   char msg[7];
   String empty;
-  ((String)SafeSkiingDevices).toCharArray(msg, 7);
+  ((String)total).toCharArray(msg, 7);
   mqttClient.publish(TOPIC2, msg);
 }
