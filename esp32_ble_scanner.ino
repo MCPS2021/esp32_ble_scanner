@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <cstring>
+#include <iostream>
 
 #include <BLEDevice.h>
 #include <BLEUtils.h>
@@ -10,7 +12,7 @@
 #include <WiFi.h>
 #include "wifi_config.h"
 
-#define SCAN_LENGTH 7               // scan length
+#define SCAN_LENGTH 30               // scan length
 #define MQTT_NAME "Station1"
 #define TOPIC1 "station1/UUIDs"      // MQTT topic 1
 #define TOPIC2 "station1/totalPeople" //MQTT topic 2
@@ -63,24 +65,34 @@ void loop() {
   uint8_t total = devices.getCount();
 
   Serial.println("Devices: " + (String)total);
+
+  int SafeSkiingDevice = 0;
+  
+  for (uint8_t i=0; i<total; i++){
+    BLEAdvertisedDevice device = devices.getDevice(i);
+    String dname = device.getName().c_str();
+    if (dname =="SafeSkiing"){
+      SafeSkiingDevice++;
+    }
+  }
+  char fullmsg[1000];
   for (uint8_t i=0; i<total; i++){
       BLEAdvertisedDevice device = devices.getDevice(i);
       String dname = device.getName().c_str();
-      String addr = device.getAddress().toString().c_str();
-      String rssi = (String) device.getRSSI();
-
+      
       if (dname =="SafeSkiing"){
-        char msg[100];
-        String json = "{\"addr\": \""+addr+"\", \"batt\": \""+rssi+"\"}";
-        json.toCharArray(msg, 100);
-        
-        Serial.println(msg);
-        mqttClient.publish(TOPIC1, msg);
+        Serial.println("Found!");
+        std::strcpy(fullmsg, device.getAddress().toString().c_str());
+        Serial.println(fullmsg);
       }
   }
-  //publish to topic
+  
+  //publish to topics
+  mqttClient.publish(TOPIC1, fullmsg);
+  
   char msg[7];
   String empty;
   ((String)total).toCharArray(msg, 7);
   mqttClient.publish(TOPIC2, msg);
+  pBLEScan->clearResults();
 }
