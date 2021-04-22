@@ -69,7 +69,7 @@ void loop() {
   for (uint8_t i=0; i<total; i++){
     BLEAdvertisedDevice device = devices.getDevice(i);
     String dname = device.getName().c_str();
-    if (dname =="SafeSkiing"){
+    if (dname == "SafeSkiing"){
       SafeSkiingDevice++;
     }
   }
@@ -84,19 +84,25 @@ void loop() {
       
       if (dname =="SafeSkiing"){
         const char * addr = device.getAddress().toString().c_str();
+        strcpy(fullmsg+array_position, addr);
+        fullmsg[array_position+17] = ',';
+        fullmsg[array_position+18] = '\0';
+        array_position += 18;
+        /*
         Serial.println("Found! adding in pos " + (String) addr);
-        for (uint8_t j = 0; j< 17; j++){
-          Serial.print(addr[j]);
+        for (uint8_t j = 0; j< 18; j++){
+          Serial;
           fullmsg[array_position+j] = addr[j];
         }
         Serial.println("");
-        fullmsg[array_position+17] = ',';
-        array_position += 18;
+        fullmsg[array_position+18] = ',';
+        array_position += 19;
 
         for (uint8_t k=0; k<=(18 * SafeSkiingDevice); k++){
           Serial.print(fullmsg[k]);
         }
-        Serial.println("");
+        */
+        Serial.println(fullmsg);
       }
   }
   //publish to topics
