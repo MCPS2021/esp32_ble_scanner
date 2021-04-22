@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <cstring>
 #include <iostream>
+#include <esp.h>
 
 #include <BLEDevice.h>
 #include <BLEUtils.h>
@@ -27,13 +28,10 @@ void setup() {
   Serial.begin(9600);
   
   //connecting to wifi
-  Serial.print("Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.println(".");
   }
-  Serial.println("\nWiFi Connected!");
 
   //turning on BLE
   BLEDevice::init("");
@@ -44,14 +42,10 @@ void setup() {
   pBLEScan->setWindow(0x30);
 
   //connecting to MQTT
-  Serial.print("Connecting to MQTT...");
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   while (!mqttClient.connected()) {
-      Serial.print(".");
    
-      if (mqttClient.connect(MQTT_NAME)) {
-        Serial.println("\nMQTT Connected!");  
-      } else {
+      if (!mqttClient.connect(MQTT_NAME)) {
         Serial.println("\nCannot Connect to MQTT Server");
         Serial.println(mqttClient.state());
         delay(2000);
@@ -63,61 +57,28 @@ void loop() {
   Serial.println("Started BLE Scan");
   BLEScanResults devices = pBLEScan->start(SCAN_LENGTH, false);
   uint8_t total = devices.getCount();
-
-  int SafeSkiingDevice = 0;
   
-  for (uint8_t i=0; i<total; i++){
-    BLEAdvertisedDevice device = devices.getDevice(i);
-    String dname = device.getName().c_str();
-    if (dname == "SafeSkiing"){
-      SafeSkiingDevice++;
-    }
-  }
-  
-  Serial.println("SafeSkiing Devices: " + (String)SafeSkiingDevice);
-  
-  char *fullmsg = (char*)malloc((sizeof(char) * 18 * SafeSkiingDevice) +10);
-  int array_position = 0;
+  String fullmsg = "";
+  int total = 0;
   for (uint8_t i=0; i<total; i++){
       BLEAdvertisedDevice device = devices.getDevice(i);
       String dname = device.getName().c_str();
       
       if (dname =="SafeSkiing"){
-        const char * addr = device.getAddress().toString().c_str();
-        strcpy(fullmsg+array_position, addr);
-        fullmsg[array_position+17] = ',';
-        fullmsg[array_position+18] = '\0';
-        array_position += 18;
-        /*
-        Serial.println("Found! adding in pos " + (String) addr);
-        for (uint8_t j = 0; j< 18; j++){
-          Serial;
-          fullmsg[array_position+j] = addr[j];
-        }
-        Serial.println("");
-        fullmsg[array_position+18] = ',';
-        array_position += 19;
-
-        for (uint8_t k=0; k<=(18 * SafeSkiingDevice); k++){
-          Serial.print(fullmsg[k]);
-        }
-        */
-        Serial.println(fullmsg);
+        String addr = device.getAddress().toString().c_str();
+        fullmsg += (addr + (String)",");
+        total++;
       }
   }
   //publish to topics
-  if (array_position > 0){
-    mqttClient.publish(TOPIC1, fullmsg);
-  } else {
-    mqttClient.publish(TOPIC1, "");
-  }
+  const char * fullmsg2 = fullmsg.c_str();
+  mqttClient.publish(TOPIC1, fullmsg2);
   
-  free(fullmsg);
   
   char msg[7];
   String empty;
   ((String)total).toCharArray(msg, 7);
   mqttClient.publish(TOPIC2, msg);
-  pBLEScan->stop();
-  pBLEScan->clearResults();
+
+  ESP.restart();
 }
