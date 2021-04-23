@@ -4,7 +4,7 @@ This is an Arduino sketch for ESP32 devices to be able to scan BLE devices
 
 ## Description
 The goal of this repo is to have an ESP32 that scan the BLE devices availables
-and if they are "Safe Skiing" BLE Devices, it gets the UUID and RSSI (Battery State)
+and if they are "Safe Skiing" BLE Devices, it gets the MAC Address and RSSI (Battery State)
 and it publishes them to a MQTT Broker
 
 ## Installation
