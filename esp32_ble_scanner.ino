@@ -13,7 +13,7 @@
 #include <WiFi.h>
 #include "wifi_config.h"
 
-#define SCAN_LENGTH 10               // scan length
+#define SCAN_LENGTH 9               // scan length
 #define MQTT_NAME "Station1"
 #define TOPIC1 "station1/UUIDs"      // MQTT topic 1
 #define TOPIC2 "station1/totalPeople" //MQTT topic 2
@@ -35,7 +35,6 @@ void setup() {
 
   //turning on BLE
   BLEDevice::init("");
-  Serial.println("BLE Enabled");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
   pBLEScan->setInterval(0x50);
@@ -59,15 +58,16 @@ void loop() {
   uint8_t total = devices.getCount();
   
   String fullmsg = "";
-  int total = 0;
+  int totalSSD = 0;
   for (uint8_t i=0; i<total; i++){
       BLEAdvertisedDevice device = devices.getDevice(i);
       String dname = device.getName().c_str();
       
       if (dname =="SafeSkiing"){
         String addr = device.getAddress().toString().c_str();
-        fullmsg += (addr + (String)",");
-        total++;
+        String rssi = (String)device.getRSSI();
+        fullmsg += (addr + (String)"," + rssi + (String)";");
+        totalSSD++;
       }
   }
   //publish to topics
@@ -77,8 +77,8 @@ void loop() {
   
   char msg[7];
   String empty;
-  ((String)total).toCharArray(msg, 7);
+  ((String)totalSSD).toCharArray(msg, 7);
   mqttClient.publish(TOPIC2, msg);
-
+  delay(1000);
   ESP.restart();
 }
