@@ -1,13 +1,7 @@
 #include <Arduino.h>
-#include <cstring>
-#include <iostream>
-#include <esp.h>
 
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEScan.h>
-#include <BLEAdvertisedDevice.h>
-#include <BLEBeacon.h>
+#include <NimBLEDevice.h>
+#include <NimBLEScan.h>
 #include <PubSubClient.h>
 
 #include <WiFi.h>
@@ -22,7 +16,7 @@
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-BLEScan *pBLEScan;
+NimBLEScan *pBLEScan;
 
 void setup() {
   Serial.begin(9600);
@@ -34,8 +28,8 @@ void setup() {
   }
 
   //turning on BLE
-  BLEDevice::init("");
-  pBLEScan = BLEDevice::getScan(); //create new scan
+  NimBLEDevice::init("");
+  pBLEScan = NimBLEDevice::getScan(); //create new scan
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
   pBLEScan->setInterval(0x50);
   pBLEScan->setWindow(0x30);
@@ -52,33 +46,42 @@ void setup() {
   }
 }
 
+String getPayload(String str){
+  String start = "manufacturer data: ";
+  String finish = "\n";
+  int locStart = str.indexOf(start);
+  if (locStart==-1) return "";
+  locStart += start.length();
+  return str.substring(locStart, locStart+50);
+}
+
 void loop() {
   Serial.println("Started BLE Scan");
-  BLEScanResults devices = pBLEScan->start(SCAN_LENGTH, false);
+  NimBLEScanResults devices = pBLEScan->start(SCAN_LENGTH, false);
   uint8_t total = devices.getCount();
   
   String fullmsg = "";
   int totalSSD = 0;
   for (uint8_t i=0; i<total; i++){
-      BLEAdvertisedDevice device = devices.getDevice(i);
+      NimBLEAdvertisedDevice device = devices.getDevice(i);
       String dname = device.getName().c_str();
       
       if (dname =="SafeSkiing"){
-        String addr = device.getAddress().toString().c_str();
-        String rssi = (String)device.getRSSI();
-        fullmsg += (addr + (String)"," + rssi + (String)";");
-        totalSSD++;
+        String payload = getPayload(device.toString().c_str());
+        if (payload != ""){
+          String uuid = payload.substring(8, 40);
+          String battery = payload.substring(48,50);
+          fullmsg += (uuid + (String)"," + battery + (String)";");
+          totalSSD++;
+        }
       }
   }
   //publish to topics
   const char * fullmsg2 = fullmsg.c_str();
   mqttClient.publish(TOPIC1, fullmsg2);
   
+  Serial.println("SafeSkiing Devices: " + (String) totalSSD);
   
-  char msg[7];
-  String empty;
-  ((String)totalSSD).toCharArray(msg, 7);
-  mqttClient.publish(TOPIC2, msg);
+  mqttClient.publish(TOPIC2, ((String)totalSSD).c_str());
   delay(1000);
-  ESP.restart();
 }

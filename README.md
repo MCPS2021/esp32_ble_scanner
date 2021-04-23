@@ -10,5 +10,5 @@ and it publishes them to a MQTT Broker
 ## Installation
 You need an ESP32 Dev board and Arduino IDE with the following packages:
 - "esp32" in Board Configurator by Espressif Systems
-- "ESP32 BLE Arduino" by Neil Kolban
+- "NimBLE-Arduino" by h2zero
 - "PubSubClient" by Nick O'Leary
