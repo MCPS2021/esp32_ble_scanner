@@ -2,30 +2,13 @@
 
 #include <NimBLEDevice.h>
 #include <NimBLEScan.h>
-#include <PubSubClient.h>
 
-#include <WiFi.h>
-#include "wifi_config.h"
-
-#define SCAN_LENGTH 9               // scan length
-#define MQTT_NAME "Station1"
-#define TOPIC1 "station1/UUIDs"      // MQTT topic 1
-#define TOPIC2 "station1/totalPeople" //MQTT topic 2
-
-//MQTT 
-WiFiClient wifiClient;
-PubSubClient mqttClient(wifiClient);
+#define SCAN_LENGTH 5               // scan length
 
 NimBLEScan *pBLEScan;
 
 void setup() {
   Serial.begin(9600);
-  
-  //connecting to wifi
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-  }
 
   //turning on BLE
   NimBLEDevice::init("");
@@ -33,17 +16,6 @@ void setup() {
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
   pBLEScan->setInterval(0x50);
   pBLEScan->setWindow(0x30);
-
-  //connecting to MQTT
-  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
-  while (!mqttClient.connected()) {
-   
-      if (!mqttClient.connect(MQTT_NAME)) {
-        Serial.println("\nCannot Connect to MQTT Server");
-        Serial.println(mqttClient.state());
-        delay(2000);
-      }
-  }
 }
 
 String getPayload(String str){
@@ -71,17 +43,14 @@ void loop() {
         if (payload != ""){
           String uuid = payload.substring(8, 40);
           String battery = payload.substring(48,50);
-          fullmsg += (uuid + (String)"," + battery + (String)";");
+          fullmsg += (uuid + (String)"," + (String)device.getRSSI() + (String)"," + battery + (String)";");
           totalSSD++;
         }
       }
   }
-  //publish to topics
-  const char * fullmsg2 = fullmsg.c_str();
-  mqttClient.publish(TOPIC1, fullmsg2);
   
   Serial.println("SafeSkiing Devices: " + (String) totalSSD);
-  
-  mqttClient.publish(TOPIC2, ((String)totalSSD).c_str());
-  delay(1000);
+  Serial.println(fullmsg);
+  Serial.println("YOU CAN MOVE NOW");
+  delay(5000);
 }
